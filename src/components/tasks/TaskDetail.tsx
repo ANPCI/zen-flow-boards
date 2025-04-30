@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useTaskContext } from '@/contexts/TaskContext';
-import { Task, Priority, Status, User } from '@/types';
+import { Task, Priority, Status, User, TaskType } from '@/types';
 import { 
   Dialog, 
   DialogContent, 
@@ -22,7 +22,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Trash2 } from 'lucide-react';
+import { CalendarIcon, Trash2, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 
@@ -47,6 +47,13 @@ const priorityOptions: { value: Priority; label: string }[] = [
   { value: 'urgent', label: 'Urgent' },
 ];
 
+const typeOptions: { value: TaskType; label: string }[] = [
+  { value: 'epic', label: 'Epic' },
+  { value: 'story', label: 'Story' },
+  { value: 'task', label: 'Task' },
+  { value: 'subtask', label: 'Subtask' },
+];
+
 const priorityColors = {
   low: 'bg-green-100 text-green-800',
   medium: 'bg-blue-100 text-blue-800',
@@ -54,8 +61,15 @@ const priorityColors = {
   urgent: 'bg-red-100 text-red-800',
 };
 
+const typeColors = {
+  epic: 'bg-purple-100 text-purple-800',
+  story: 'bg-blue-100 text-blue-800',
+  task: 'bg-green-100 text-green-800',
+  subtask: 'bg-gray-100 text-gray-800',
+};
+
 const TaskDetail: React.FC<TaskDetailProps> = ({ task, open, onClose }) => {
-  const { updateTask, deleteTask, users } = useTaskContext();
+  const { updateTask, deleteTask, users, tasks } = useTaskContext();
   
   const [editedTask, setEditedTask] = useState<Task | null>(task);
   const [newTag, setNewTag] = useState('');
@@ -65,6 +79,16 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ task, open, onClose }) => {
   }, [task]);
   
   if (!editedTask) return null;
+  
+  // Get parent task if exists
+  const parentTask = editedTask.parentId 
+    ? tasks.find(t => t.id === editedTask.parentId) 
+    : null;
+  
+  // Get child tasks
+  const childTasks = tasks.filter(t => 
+    editedTask.childrenIds.includes(t.id)
+  );
   
   const handleSave = () => {
     if (editedTask) {
@@ -108,10 +132,33 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ task, open, onClose }) => {
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Task Details</DialogTitle>
+          <DialogTitle className="flex items-center">
+            <Badge 
+              variant="outline" 
+              className={`mr-2 capitalize ${typeColors[editedTask.type]}`}
+            >
+              {editedTask.type}
+            </Badge>
+            Task Details
+          </DialogTitle>
         </DialogHeader>
         
         <div className="grid gap-4 py-4">
+          {parentTask && (
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label className="text-right text-sm font-medium">Parent</label>
+              <div className="col-span-3 flex items-center border p-2 rounded-md bg-muted/30">
+                <Badge 
+                  variant="outline" 
+                  className={`mr-2 capitalize ${typeColors[parentTask.type]}`}
+                >
+                  {parentTask.type}
+                </Badge>
+                <span>{parentTask.title}</span>
+              </div>
+            </div>
+          )}
+          
           <div className="grid grid-cols-4 items-center gap-4">
             <label className="text-right text-sm font-medium">Title</label>
             <Input
@@ -129,6 +176,29 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ task, open, onClose }) => {
               onChange={(e) => handleChange('description', e.target.value)}
               rows={3}
             />
+          </div>
+          
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label className="text-right text-sm font-medium">Type</label>
+            <Select 
+              value={editedTask.type} 
+              onValueChange={(value: TaskType) => handleChange('type', value)}
+              disabled={true} // Disable type change as it would break hierarchy
+            >
+              <SelectTrigger className="col-span-3">
+                <SelectValue placeholder="Select type" />
+              </SelectTrigger>
+              <SelectContent>
+                {typeOptions.map((type) => (
+                  <SelectItem key={type.value} value={type.value}>
+                    <div className="flex items-center">
+                      <span className={`inline-block w-3 h-3 rounded-full mr-2 ${typeColors[type.value].split(' ')[0]}`}></span>
+                      {type.label}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           
           <div className="grid grid-cols-4 items-center gap-4">
@@ -170,6 +240,18 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ task, open, onClose }) => {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label className="text-right text-sm font-medium">Story Points</label>
+            <Input
+              className="col-span-3"
+              type="number"
+              min="0"
+              value={editedTask.storyPoints ?? ''}
+              onChange={(e) => handleChange('storyPoints', e.target.value ? parseInt(e.target.value) : undefined)}
+              placeholder="Estimate story points"
+            />
           </div>
           
           <div className="grid grid-cols-4 items-center gap-4">
@@ -265,6 +347,33 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ task, open, onClose }) => {
               </div>
             </div>
           </div>
+          
+          {childTasks.length > 0 && (
+            <div className="grid grid-cols-4 items-start gap-4">
+              <label className="text-right text-sm font-medium pt-2">Children</label>
+              <div className="col-span-3 border rounded-md divide-y">
+                {childTasks.map(child => (
+                  <div 
+                    key={child.id}
+                    className="p-2 flex items-center justify-between hover:bg-muted/30"
+                  >
+                    <div className="flex items-center">
+                      <Badge 
+                        variant="outline" 
+                        className={`mr-2 capitalize ${typeColors[child.type]}`}
+                      >
+                        {child.type}
+                      </Badge>
+                      <span>{child.title}</span>
+                    </div>
+                    <div className={`px-2 py-1 text-xs rounded-full ${priorityColors[child.priority]}`}>
+                      {child.priority}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         
         <DialogFooter className="flex justify-between">

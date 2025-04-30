@@ -9,6 +9,7 @@ import { TaskProvider } from "./contexts/TaskContext";
 import Dashboard from "./pages/Dashboard";
 import KanbanBoard from "./pages/KanbanBoard";
 import MyTasks from "./pages/MyTasks";
+import TaskHierarchy from "./pages/TaskHierarchy";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,7 @@ const App = () => (
               <Route path="/" element={<Dashboard />} />
               <Route path="/board" element={<KanbanBoard />} />
               <Route path="/my-tasks" element={<MyTasks />} />
+              <Route path="/hierarchy" element={<TaskHierarchy />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>

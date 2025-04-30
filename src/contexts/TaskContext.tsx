@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Task, Status, Priority, User, Project } from '@/types';
+import { Task, Status, Priority, User, Project, TaskType } from '@/types';
 import { toast } from '@/components/ui/use-toast';
 
 // Demo users
@@ -14,67 +14,117 @@ const demoUsers: User[] = [
 const demoTasks: Task[] = [
   {
     id: '1',
-    title: 'Redesign dashboard UI',
-    description: 'Update the dashboard with the new design system',
-    status: 'todo',
+    title: 'User Authentication Epic',
+    description: 'Implement complete user authentication system',
+    status: 'in-progress',
     priority: 'high',
-    assignee: demoUsers[0],
+    type: 'epic',
+    childrenIds: ['2', '3'],
     createdAt: new Date('2023-04-15'),
     updatedAt: new Date('2023-04-15'),
-    tags: ['design', 'ui'],
+    tags: ['auth', 'security'],
+    storyPoints: 13
   },
   {
     id: '2',
-    title: 'Fix login page bug',
-    description: 'Users unable to login on mobile devices',
-    status: 'in-progress',
-    priority: 'urgent',
-    assignee: demoUsers[1],
-    createdAt: new Date('2023-04-14'),
-    updatedAt: new Date('2023-04-16'),
-    tags: ['bug', 'frontend'],
+    title: 'Login Page Implementation',
+    description: 'Create login page with email and password fields',
+    status: 'todo',
+    priority: 'high',
+    type: 'story',
+    parentId: '1',
+    childrenIds: ['4', '5'],
+    assignee: demoUsers[0],
+    createdAt: new Date('2023-04-15'),
+    updatedAt: new Date('2023-04-15'),
+    tags: ['frontend', 'auth'],
+    storyPoints: 5
   },
   {
     id: '3',
-    title: 'Create API documentation',
-    description: 'Document all API endpoints for the frontend team',
+    title: 'Registration Flow',
+    description: 'Implement user registration with validation',
     status: 'backlog',
     priority: 'medium',
-    createdAt: new Date('2023-04-10'),
-    updatedAt: new Date('2023-04-10'),
-    tags: ['documentation', 'api'],
+    type: 'story',
+    parentId: '1',
+    childrenIds: [],
+    createdAt: new Date('2023-04-14'),
+    updatedAt: new Date('2023-04-16'),
+    tags: ['frontend', 'registration'],
+    storyPoints: 8
   },
   {
     id: '4',
-    title: 'Implement authentication flow',
-    description: 'Add OAuth integration with Google and GitHub',
-    status: 'review',
-    priority: 'high',
-    assignee: demoUsers[2],
+    title: 'Create login form component',
+    description: 'Build form with validation using React Hook Form',
+    status: 'in-progress',
+    priority: 'medium',
+    type: 'task',
+    parentId: '2',
+    childrenIds: ['6'],
+    assignee: demoUsers[1],
     createdAt: new Date('2023-04-08'),
     updatedAt: new Date('2023-04-18'),
-    tags: ['auth', 'security'],
+    tags: ['component', 'form'],
+    storyPoints: 3
   },
   {
     id: '5',
-    title: 'Optimize image loading',
-    description: 'Improve performance of image loading on the product page',
-    status: 'done',
-    priority: 'medium',
-    assignee: demoUsers[0],
+    title: 'Implement authentication API',
+    description: 'Connect login form to backend authentication API',
+    status: 'todo',
+    priority: 'high',
+    type: 'task',
+    parentId: '2',
+    childrenIds: [],
     createdAt: new Date('2023-04-05'),
     updatedAt: new Date('2023-04-15'),
-    tags: ['performance', 'frontend'],
+    tags: ['api', 'backend'],
+    storyPoints: 2
   },
   {
     id: '6',
-    title: 'Setup CI/CD pipeline',
-    description: 'Configure GitHub Actions for automated testing and deployment',
+    title: 'Form validation',
+    description: 'Add email and password validation to login form',
     status: 'todo',
-    priority: 'high',
-    createdAt: new Date('2023-04-17'),
-    updatedAt: new Date('2023-04-17'),
-    tags: ['devops', 'automation'],
+    priority: 'low',
+    type: 'subtask',
+    parentId: '4',
+    childrenIds: [],
+    assignee: demoUsers[0],
+    createdAt: new Date('2023-04-05'),
+    updatedAt: new Date('2023-04-15'),
+    tags: ['validation'],
+    storyPoints: 1
+  },
+  {
+    id: '7',
+    title: 'Dashboard Redesign Epic',
+    description: 'Redesign the main dashboard for better UX',
+    status: 'todo',
+    priority: 'medium',
+    type: 'epic',
+    childrenIds: ['8'],
+    createdAt: new Date('2023-04-10'),
+    updatedAt: new Date('2023-04-10'),
+    tags: ['design', 'dashboard', 'ux'],
+    storyPoints: 21
+  },
+  {
+    id: '8',
+    title: 'Chart Components',
+    description: 'Create reusable chart components for dashboard',
+    status: 'backlog',
+    priority: 'medium',
+    type: 'story',
+    parentId: '7',
+    childrenIds: [],
+    assignee: demoUsers[2],
+    createdAt: new Date('2023-04-08'),
+    updatedAt: new Date('2023-04-18'),
+    tags: ['charts', 'component'],
+    storyPoints: 8
   },
 ];
 
@@ -82,15 +132,15 @@ const demoTasks: Task[] = [
 const demoProjects: Project[] = [
   {
     id: '1',
-    name: 'Website Redesign',
-    description: 'Complete overhaul of the company website',
-    tasks: demoTasks.slice(0, 3),
+    name: 'ZenFlow App',
+    description: 'Modern task management application',
+    tasks: demoTasks,
   },
   {
     id: '2',
-    name: 'Mobile App Development',
-    description: 'New mobile app for iOS and Android',
-    tasks: demoTasks.slice(3),
+    name: 'Marketing Website',
+    description: 'Company marketing website redesign',
+    tasks: [],
   },
 ];
 
@@ -117,10 +167,13 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addTask = (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => {
     const now = new Date();
+    const newId = Date.now().toString();
+    
     const newTask: Task = {
-      id: Date.now().toString(),
+      id: newId,
       createdAt: now,
       updatedAt: now,
+      childrenIds: [],
       ...taskData,
     };
 
@@ -140,9 +193,21 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCurrentProject(updatedProject);
     }
     
+    // Update parent task's childrenIds if this task has a parent
+    if (taskData.parentId) {
+      const parentTask = tasks.find(t => t.id === taskData.parentId);
+      if (parentTask) {
+        const updatedParent = {
+          ...parentTask,
+          childrenIds: [...parentTask.childrenIds, newId]
+        };
+        updateTask(updatedParent);
+      }
+    }
+    
     toast({
-      title: "Task created",
-      description: `'${newTask.title}' has been added to your tasks.`,
+      title: `${taskData.type.charAt(0).toUpperCase() + taskData.type.slice(1)} created`,
+      description: `'${newTask.title}' has been added.`,
     });
   };
 
@@ -183,12 +248,55 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const deleteTask = (id: string) => {
     const taskToDelete = tasks.find(task => task.id === id);
     
-    setTasks((prevTasks) => prevTasks.filter((task) => task.id !== id));
+    if (!taskToDelete) return;
+    
+    // First, update any parent task to remove this task from its children
+    if (taskToDelete.parentId) {
+      const parentTask = tasks.find(t => t.id === taskToDelete.parentId);
+      if (parentTask) {
+        const updatedParent = {
+          ...parentTask,
+          childrenIds: parentTask.childrenIds.filter(childId => childId !== id)
+        };
+        
+        setTasks(prevTasks => 
+          prevTasks.map(t => t.id === parentTask.id ? updatedParent : t)
+        );
+      }
+    }
+    
+    // Handle recursive deletion of child tasks
+    const deleteTaskAndChildren = (taskId: string) => {
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) return [];
+      
+      // Collect all ids to delete (this task + all descendants)
+      const idsToDelete = [taskId];
+      
+      // Recursively collect all child ids
+      const collectChildIds = (childrenIds: string[]) => {
+        childrenIds.forEach(childId => {
+          idsToDelete.push(childId);
+          const childTask = tasks.find(t => t.id === childId);
+          if (childTask && childTask.childrenIds.length > 0) {
+            collectChildIds(childTask.childrenIds);
+          }
+        });
+      };
+      
+      collectChildIds(task.childrenIds);
+      return idsToDelete;
+    };
+    
+    const allIdsToDelete = deleteTaskAndChildren(id);
+    
+    // Delete all tasks
+    setTasks(prevTasks => prevTasks.filter(task => !allIdsToDelete.includes(task.id)));
     
     // Also remove from projects
     if (currentProject) {
       const updatedProjectTasks = currentProject.tasks.filter(
-        (task) => task.id !== id
+        task => !allIdsToDelete.includes(task.id)
       );
       
       const updatedProject = {
@@ -203,12 +311,10 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCurrentProject(updatedProject);
     }
     
-    if (taskToDelete) {
-      toast({
-        title: "Task deleted",
-        description: `'${taskToDelete.title}' has been removed.`,
-      });
-    }
+    toast({
+      title: `${taskToDelete.type.charAt(0).toUpperCase() + taskToDelete.type.slice(1)} deleted`,
+      description: `'${taskToDelete.title}' and its children have been removed.`,
+    });
   };
 
   const updateTaskStatus = (taskId: string, newStatus: Status) => {

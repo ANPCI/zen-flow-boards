@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useTaskContext } from '@/contexts/TaskContext';
-import { Priority, Status, User } from '@/types';
+import { Priority, Status, User, TaskType } from '@/types';
 import { 
   Dialog, 
   DialogContent, 
@@ -25,11 +25,22 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { 
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage
+} from '@/components/ui/form';
+import { useForm } from 'react-hook-form';
 
 interface CreateTaskDialogProps {
   open: boolean;
   onClose: () => void;
   defaultStatus?: Status;
+  defaultType?: TaskType;
+  parentTaskId?: string;
 }
 
 const statusOptions: { value: Status; label: string }[] = [
@@ -47,6 +58,13 @@ const priorityOptions: { value: Priority; label: string }[] = [
   { value: 'urgent', label: 'Urgent' },
 ];
 
+const typeOptions: { value: TaskType; label: string }[] = [
+  { value: 'epic', label: 'Epic' },
+  { value: 'story', label: 'Story' },
+  { value: 'task', label: 'Task' },
+  { value: 'subtask', label: 'Subtask' },
+];
+
 const priorityColors = {
   low: 'bg-green-100 text-green-800',
   medium: 'bg-blue-100 text-blue-800',
@@ -54,28 +72,74 @@ const priorityColors = {
   urgent: 'bg-red-100 text-red-800',
 };
 
-const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({ open, onClose, defaultStatus = 'todo' }) => {
-  const { addTask, users } = useTaskContext();
+const typeColors = {
+  epic: 'bg-purple-100 text-purple-800',
+  story: 'bg-blue-100 text-blue-800',
+  task: 'bg-green-100 text-green-800',
+  subtask: 'bg-gray-100 text-gray-800',
+};
+
+const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({ 
+  open, 
+  onClose, 
+  defaultStatus = 'todo',
+  defaultType = 'task',
+  parentTaskId 
+}) => {
+  const { addTask, users, tasks } = useTaskContext();
   
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<Status>(defaultStatus);
   const [priority, setPriority] = useState<Priority>('medium');
+  const [type, setType] = useState<TaskType>(defaultType);
   const [assigneeId, setAssigneeId] = useState<string>('');
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
+  const [storyPoints, setStoryPoints] = useState<number | undefined>(undefined);
   
-  const resetForm = () => {
-    setTitle('');
-    setDescription('');
-    setStatus(defaultStatus);
-    setPriority('medium');
-    setAssigneeId('');
-    setDueDate(undefined);
-    setTags([]);
-    setNewTag('');
+  // Get parent task if parentTaskId is provided
+  const parentTask = parentTaskId ? tasks.find(t => t.id === parentTaskId) : undefined;
+
+  // Determine allowed task types based on parent
+  const allowedTypes = () => {
+    if (!parentTask) return typeOptions;
+    
+    switch(parentTask.type) {
+      case 'epic':
+        return typeOptions.filter(t => t.value === 'story');
+      case 'story':
+        return typeOptions.filter(t => t.value === 'task');
+      case 'task':
+        return typeOptions.filter(t => t.value === 'subtask');
+      default:
+        return typeOptions;
+    }
   };
+  
+  // Reset form and set defaults
+  React.useEffect(() => {
+    if (open) {
+      setTitle('');
+      setDescription('');
+      setStatus(defaultStatus);
+      setPriority('medium');
+      setType(defaultType);
+      setAssigneeId('');
+      setDueDate(undefined);
+      setTags([]);
+      setNewTag('');
+      setStoryPoints(undefined);
+      
+      // Set appropriate type based on parent
+      if (parentTask) {
+        if (parentTask.type === 'epic') setType('story');
+        else if (parentTask.type === 'story') setType('task');
+        else if (parentTask.type === 'task') setType('subtask');
+      }
+    }
+  }, [open, defaultStatus, defaultType, parentTask]);
   
   const handleAddTag = () => {
     if (newTag && !tags.includes(newTag)) {
@@ -98,12 +162,15 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({ open, onClose, defa
       description,
       status,
       priority,
+      type,
       assignee,
       dueDate,
       tags,
+      storyPoints,
+      parentId: parentTaskId,
+      childrenIds: []
     });
     
-    resetForm();
     onClose();
   };
   
@@ -115,7 +182,12 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({ open, onClose, defa
     }}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Create New Task</DialogTitle>
+          <DialogTitle>
+            {parentTask 
+              ? `Create New ${type.charAt(0).toUpperCase() + type.slice(1)} under "${parentTask.title}"`
+              : `Create New ${type.charAt(0).toUpperCase() + type.slice(1)}`
+            }
+          </DialogTitle>
         </DialogHeader>
         
         <div className="grid gap-4 py-4">
@@ -138,6 +210,29 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({ open, onClose, defa
               placeholder="Task description"
               rows={3}
             />
+          </div>
+          
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label className="text-right text-sm font-medium">Type</label>
+            <Select 
+              value={type} 
+              onValueChange={(value: TaskType) => setType(value)}
+              disabled={!!parentTask} // Disable if parent task exists
+            >
+              <SelectTrigger className="col-span-3">
+                <SelectValue placeholder="Select type" />
+              </SelectTrigger>
+              <SelectContent>
+                {allowedTypes().map((typeOption) => (
+                  <SelectItem key={typeOption.value} value={typeOption.value}>
+                    <div className="flex items-center">
+                      <span className={`inline-block w-3 h-3 rounded-full mr-2 ${typeColors[typeOption.value].split(' ')[0]}`}></span>
+                      {typeOption.label}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           
           <div className="grid grid-cols-4 items-center gap-4">
@@ -173,6 +268,18 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({ open, onClose, defa
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label className="text-right text-sm font-medium">Story Points</label>
+            <Input
+              className="col-span-3"
+              type="number"
+              min="0"
+              value={storyPoints ?? ''}
+              onChange={(e) => setStoryPoints(e.target.value ? parseInt(e.target.value) : undefined)}
+              placeholder="Estimate story points"
+            />
           </div>
           
           <div className="grid grid-cols-4 items-center gap-4">
@@ -274,7 +381,7 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({ open, onClose, defa
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={!title.trim()}>
-            Create Task
+            Create
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,138 +1,90 @@
 
 import React from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import { SidebarProvider } from '@/components/ui/sidebar';
+import { Button } from '@/components/ui/button';
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from '@/components/ui/sidebar';
-import { useTaskContext } from '@/contexts/TaskContext';
-import { LogOut, LayoutDashboard, Kanban, Settings, User, Plus, Archive } from 'lucide-react';
+  LayoutDashboard,
+  Kanban,
+  CheckSquare,
+  ListChecks,
+  Menu,
+} from 'lucide-react';
 
-const AppSidebar = () => {
-  const navigate = useNavigate();
+const AppSidebar: React.FC = () => {
+  const [collapsed, setCollapsed] = React.useState(false);
   const location = useLocation();
-  const { projects, currentProject, setCurrentProject } = useTaskContext();
-  
-  const mainMenuItems = [
+
+  const navItems = [
     {
-      title: 'Dashboard',
+      name: 'Dashboard',
+      icon: <LayoutDashboard size={18} />,
       path: '/',
-      icon: LayoutDashboard,
     },
     {
-      title: 'Kanban Board',
+      name: 'Kanban Board',
+      icon: <Kanban size={18} />,
       path: '/board',
-      icon: Kanban,
     },
     {
-      title: 'My Tasks',
+      name: 'My Tasks',
+      icon: <CheckSquare size={18} />,
       path: '/my-tasks',
-      icon: Archive,
     },
     {
-      title: 'Settings',
-      path: '/settings',
-      icon: Settings,
+      name: 'Task Hierarchy',
+      icon: <ListChecks size={18} />,
+      path: '/hierarchy',
     },
   ];
 
-  const handleNavigation = (path: string) => {
-    navigate(path);
-  };
-
-  const handleProjectSelect = (projectId: string) => {
-    const selectedProject = projects.find(p => p.id === projectId) || null;
-    setCurrentProject(selectedProject);
-  };
-
   return (
-    <Sidebar>
-      <SidebarHeader className="px-2 py-4">
-        <div className="flex items-center px-2">
-          <div className="w-8 h-8 rounded bg-primary flex items-center justify-center mr-2">
-            <span className="text-white font-semibold">Z</span>
-          </div>
-          <div className="font-semibold text-sidebar-foreground">ZenFlow</div>
-        </div>
-      </SidebarHeader>
-      
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Main</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {mainMenuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    onClick={() => handleNavigation(item.path)} 
-                    active={location.pathname === item.path}
-                  >
-                    <item.icon size={18} />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        
-        <SidebarGroup>
-          <div className="flex justify-between items-center pr-2">
-            <SidebarGroupLabel>Projects</SidebarGroupLabel>
-            <button 
-              className="h-5 w-5 rounded-sm flex items-center justify-center hover:bg-sidebar-accent/40 transition-colors duration-200"
-              onClick={() => navigate('/new-project')}
-            >
-              <Plus size={14} />
-            </button>
-          </div>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {projects.map((project) => (
-                <SidebarMenuItem key={project.id}>
-                  <SidebarMenuButton 
-                    onClick={() => handleProjectSelect(project.id)}
-                    active={currentProject?.id === project.id}
-                  >
-                    <span className="w-4 h-4 rounded-sm bg-primary/30 flex items-center justify-center mr-1">
-                      {project.name.charAt(0).toUpperCase()}
-                    </span>
-                    <span>{project.name}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
-      
-      <SidebarFooter>
-        <div className="px-3 py-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <div className="w-8 h-8 rounded-full bg-sidebar-accent flex items-center justify-center mr-2">
-                <User size={14} />
-              </div>
-              <div className="text-sm">
-                <div className="font-medium text-sidebar-foreground">John Doe</div>
-                <div className="text-xs text-sidebar-foreground/70">Admin</div>
-              </div>
-            </div>
-            <button className="h-8 w-8 rounded flex items-center justify-center hover:bg-sidebar-accent/40 transition-colors duration-200">
-              <LogOut size={14} />
-            </button>
-          </div>
-        </div>
-      </SidebarFooter>
-    </Sidebar>
+    <div
+      className={`h-screen bg-card border-r border-border flex flex-col ${
+        collapsed ? 'w-[60px]' : 'w-[240px]'
+      } transition-all duration-300`}
+    >
+      <div className="p-4 flex items-center justify-between border-b">
+        <h1
+          className={`font-bold text-xl ${
+            collapsed ? 'hidden' : 'block'
+          } transition-all duration-300`}
+        >
+          ZenFlow
+        </h1>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 w-8 p-0"
+          onClick={() => setCollapsed(!collapsed)}
+        >
+          <Menu size={18} />
+        </Button>
+      </div>
+
+      <nav className="flex-1 py-4">
+        <ul className="space-y-1 px-2">
+          {navItems.map((item) => (
+            <li key={item.path}>
+              <Button
+                variant="ghost"
+                className={`w-full justify-start ${
+                  location.pathname === item.path ? 'bg-secondary' : ''
+                }`}
+                asChild
+              >
+                <Link to={item.path}>
+                  {item.icon}
+                  <span className={collapsed ? 'hidden' : 'ml-2'}>
+                    {item.name}
+                  </span>
+                </Link>
+              </Button>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </div>
   );
 };
 

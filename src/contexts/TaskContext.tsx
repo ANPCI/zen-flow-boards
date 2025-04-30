@@ -29,7 +29,9 @@ const demoTasks: Task[] = [
       timeSpent: 600, // 10 hours
     },
     reporter: demoUsers[2],
-    branch: 'epic/auth-system'
+    branch: 'epic/auth-system',
+    components: ['Authentication', 'Frontend'],
+    labels: ['core-feature', 'security']
   },
   {
     id: '2',
@@ -51,7 +53,8 @@ const demoTasks: Task[] = [
       timeSpent: 0,
     },
     reporter: demoUsers[1],
-    branch: 'story/2-login-page'
+    branch: 'story/2-login-page',
+    components: ['Frontend']
   },
   {
     id: '3',
@@ -148,12 +151,18 @@ const demoProjects: Project[] = [
     name: 'ZenFlow App',
     description: 'Modern task management application',
     tasks: demoTasks,
+    key: 'ZEN',
+    lead: demoUsers[0],
+    components: ['Authentication', 'Frontend', 'API', 'Dashboard']
   },
   {
     id: '2',
     name: 'Marketing Website',
     description: 'Company marketing website redesign',
     tasks: [],
+    key: 'MKT',
+    lead: demoUsers[1],
+    components: ['Design', 'Frontend', 'Content']
   },
 ];
 
@@ -359,9 +368,9 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const createGitHubBranch = async (task: Task): Promise<string> => {
     // Generate a branch name based on task type and title
     const taskPrefix = task.type === 'bug' ? 'fix' : 
-                       task.type === 'feature' ? 'feature' : 
-                       task.type;
-                       
+                      task.type === 'feature' ? 'feature' : 
+                      task.type;
+                      
     const slugifiedTitle = task.title
       .toLowerCase()
       .replace(/[^\w\s]/g, '')

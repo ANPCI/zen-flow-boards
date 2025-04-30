@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useTaskContext } from '@/contexts/TaskContext';
 import { Task, Priority, Status, User, TaskType } from '@/types';
@@ -22,9 +21,16 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Trash2, ChevronRight } from 'lucide-react';
+import { CalendarIcon, Trash2, ChevronRight, Clock, GitBranchIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { 
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+} from "@/components/ui/form";
 
 interface TaskDetailProps {
   task: Task | null;
@@ -68,14 +74,63 @@ const typeColors = {
   subtask: 'bg-gray-100 text-gray-800',
 };
 
+// Helper function to format minutes to hours and minutes
+const formatMinutes = (minutes?: number): string => {
+  if (!minutes) return '0h 0m';
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${hours}h ${mins}m`;
+};
+
+// Helper function to parse hours and minutes input to minutes
+const parseTimeInput = (timeString: string): number | undefined => {
+  // Format should be like "2h 30m" or "2h" or "30m"
+  if (!timeString.trim()) return undefined;
+  
+  let minutes = 0;
+  const hourMatch = timeString.match(/(\d+)h/);
+  const minuteMatch = timeString.match(/(\d+)m/);
+  
+  if (hourMatch) minutes += parseInt(hourMatch[1]) * 60;
+  if (minuteMatch) minutes += parseInt(minuteMatch[1]);
+  
+  return minutes > 0 ? minutes : undefined;
+};
+
 const TaskDetail: React.FC<TaskDetailProps> = ({ task, open, onClose }) => {
   const { updateTask, deleteTask, users, tasks } = useTaskContext();
   
   const [editedTask, setEditedTask] = useState<Task | null>(task);
   const [newTag, setNewTag] = useState('');
+  const [originalEstimateInput, setOriginalEstimateInput] = useState('');
+  const [remainingEstimateInput, setRemainingEstimateInput] = useState('');
+  const [timeSpentInput, setTimeSpentInput] = useState('');
+  const [branchName, setBranchName] = useState('');
   
   React.useEffect(() => {
     setEditedTask(task);
+    
+    // Initialize time tracking input fields
+    if (task?.timeTracking?.originalEstimate) {
+      setOriginalEstimateInput(formatMinutes(task.timeTracking.originalEstimate));
+    } else {
+      setOriginalEstimateInput('');
+    }
+    
+    if (task?.timeTracking?.remainingEstimate) {
+      setRemainingEstimateInput(formatMinutes(task.timeTracking.remainingEstimate));
+    } else {
+      setRemainingEstimateInput('');
+    }
+    
+    if (task?.timeTracking?.timeSpent) {
+      setTimeSpentInput(formatMinutes(task.timeTracking.timeSpent));
+    } else {
+      setTimeSpentInput('');
+    }
+    
+    // Initialize branch name
+    setBranchName(task?.branch || '');
   }, [task]);
   
   if (!editedTask) return null;
@@ -92,9 +147,45 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ task, open, onClose }) => {
   
   const handleSave = () => {
     if (editedTask) {
-      updateTask(editedTask);
+      // Process time tracking inputs
+      const originalEstimate = parseTimeInput(originalEstimateInput);
+      const remainingEstimate = parseTimeInput(remainingEstimateInput);
+      const timeSpent = parseTimeInput(timeSpentInput);
+      
+      const updatedTask = {
+        ...editedTask,
+        timeTracking: {
+          originalEstimate,
+          remainingEstimate,
+          timeSpent,
+        },
+        branch: branchName || undefined,
+      };
+      
+      updateTask(updatedTask);
       onClose();
     }
+  };
+  
+  const handleCreateBranch = () => {
+    if (!editedTask) return;
+    
+    // Generate a branch name based on task type and title
+    const taskPrefix = editedTask.type === 'bug' ? 'fix' : 
+                      editedTask.type === 'feature' ? 'feature' : 
+                      editedTask.type;
+                      
+    const slugifiedTitle = editedTask.title
+      .toLowerCase()
+      .replace(/[^\w\s]/g, '')
+      .replace(/\s+/g, '-');
+    
+    const newBranchName = `${taskPrefix}/${editedTask.id}-${slugifiedTitle}`;
+    setBranchName(newBranchName);
+    
+    // In a real application, this would connect to GitHub API
+    // For now, we'll just update the task with the branch name
+    handleChange('branch', newBranchName);
   };
   
   const handleDelete = () => {
@@ -134,7 +225,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ task, open, onClose }) => {
   
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <Badge 
@@ -258,6 +349,70 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ task, open, onClose }) => {
             />
           </div>
           
+          {/* Time Tracking Section */}
+          <div className="grid grid-cols-4 items-start gap-4">
+            <label className="text-right text-sm font-medium pt-2">Time Tracking</label>
+            <div className="col-span-3 space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-muted-foreground">Original Estimate</label>
+                  <div className="flex items-center">
+                    <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
+                    <Input
+                      value={originalEstimateInput}
+                      onChange={(e) => setOriginalEstimateInput(e.target.value)}
+                      placeholder="e.g., 4h 30m"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Remaining Estimate</label>
+                  <Input
+                    value={remainingEstimateInput}
+                    onChange={(e) => setRemainingEstimateInput(e.target.value)}
+                    placeholder="e.g., 2h 15m"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">Time Spent</label>
+                <Input
+                  value={timeSpentInput}
+                  onChange={(e) => setTimeSpentInput(e.target.value)}
+                  placeholder="e.g., 1h 45m"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Format: 1h 30m, 45m, or 2h
+              </p>
+            </div>
+          </div>
+          
+          {/* GitHub Branch Integration */}
+          <div className="grid grid-cols-4 items-start gap-4">
+            <label className="text-right text-sm font-medium pt-2">GitHub Branch</label>
+            <div className="col-span-3">
+              <div className="flex items-center gap-2">
+                <Input
+                  value={branchName}
+                  onChange={(e) => setBranchName(e.target.value)}
+                  placeholder="feature/task-123-description"
+                />
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleCreateBranch}
+                >
+                  <GitBranchIcon className="h-4 w-4 mr-1" />
+                  Generate
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Format: type/task-id-title
+              </p>
+            </div>
+          </div>
+          
           <div className="grid grid-cols-4 items-center gap-4">
             <label className="text-right text-sm font-medium">Assignee</label>
             <Select 
@@ -324,8 +479,8 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ task, open, onClose }) => {
             </Popover>
           </div>
           
-          <div className="grid grid-cols-4 items-start gap-4">
-            <label className="text-right text-sm font-medium pt-2">Tags</label>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label className="text-right text-sm font-medium">Tags</label>
             <div className="col-span-3">
               <div className="flex flex-wrap gap-1 mb-2">
                 {editedTask.tags.map((tag) => (

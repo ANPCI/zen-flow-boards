@@ -1,6 +1,5 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Task, Status, Priority, User, Project, TaskType } from '@/types';
+import { Task, Status, Priority, User, Project, TaskType, TimeTracking } from '@/types';
 import { toast } from '@/components/ui/use-toast';
 
 // Demo users
@@ -10,7 +9,7 @@ const demoUsers: User[] = [
   { id: '3', name: 'Alex Johnson', avatar: 'https://i.pravatar.cc/150?img=3' },
 ];
 
-// Demo tasks
+// Demo tasks with added time tracking
 const demoTasks: Task[] = [
   {
     id: '1',
@@ -23,7 +22,14 @@ const demoTasks: Task[] = [
     createdAt: new Date('2023-04-15'),
     updatedAt: new Date('2023-04-15'),
     tags: ['auth', 'security'],
-    storyPoints: 13
+    storyPoints: 13,
+    timeTracking: {
+      originalEstimate: 2400, // 40 hours
+      remainingEstimate: 1800, // 30 hours
+      timeSpent: 600, // 10 hours
+    },
+    reporter: demoUsers[2],
+    branch: 'epic/auth-system'
   },
   {
     id: '2',
@@ -38,7 +44,14 @@ const demoTasks: Task[] = [
     createdAt: new Date('2023-04-15'),
     updatedAt: new Date('2023-04-15'),
     tags: ['frontend', 'auth'],
-    storyPoints: 5
+    storyPoints: 5,
+    timeTracking: {
+      originalEstimate: 480, // 8 hours
+      remainingEstimate: 480, // 8 hours
+      timeSpent: 0,
+    },
+    reporter: demoUsers[1],
+    branch: 'story/2-login-page'
   },
   {
     id: '3',
@@ -155,6 +168,7 @@ interface TaskContextType {
   deleteTask: (id: string) => void;
   updateTaskStatus: (taskId: string, newStatus: Status) => void;
   getTasksByStatus: (status: Status) => Task[];
+  createGitHubBranch?: (task: Task) => Promise<string>;
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -169,11 +183,15 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const now = new Date();
     const newId = Date.now().toString();
     
+    // Set current user as reporter if not specified
+    const reporter = taskData.reporter || users[0]; // In a real app, this would be the logged-in user
+    
     const newTask: Task = {
       id: newId,
       createdAt: now,
       updatedAt: now,
       childrenIds: [],
+      reporter,
       ...taskData,
     };
 
@@ -336,6 +354,34 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return currentProject.tasks.filter(task => task.status === status);
   };
 
+  // Mock function for GitHub branch creation
+  // In a real app, this would connect to GitHub API
+  const createGitHubBranch = async (task: Task): Promise<string> => {
+    // Generate a branch name based on task type and title
+    const taskPrefix = task.type === 'bug' ? 'fix' : 
+                       task.type === 'feature' ? 'feature' : 
+                       task.type;
+                       
+    const slugifiedTitle = task.title
+      .toLowerCase()
+      .replace(/[^\w\s]/g, '')
+      .replace(/\s+/g, '-');
+    
+    const branchName = `${taskPrefix}/${task.id}-${slugifiedTitle}`;
+    
+    // Update task with branch name
+    const updatedTask = {
+      ...task,
+      branch: branchName,
+    };
+    
+    updateTask(updatedTask);
+    
+    // In a real app, this would use GitHub API to create the branch
+    // For now, just return the branch name
+    return Promise.resolve(branchName);
+  };
+
   return (
     <TaskContext.Provider
       value={{
@@ -349,6 +395,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
         deleteTask,
         updateTaskStatus,
         getTasksByStatus,
+        createGitHubBranch,
       }}
     >
       {children}

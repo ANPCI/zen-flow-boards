@@ -124,8 +124,12 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ task, open, onClose }) => {
   };
   
   const handleAssigneeChange = (userId: string) => {
-    const selectedUser = users.find(user => user.id === userId);
-    handleChange('assignee', selectedUser);
+    if (userId === 'unassigned') {
+      handleChange('assignee', undefined);
+    } else {
+      const selectedUser = users.find(user => user.id === userId);
+      handleChange('assignee', selectedUser);
+    }
   };
   
   return (
@@ -257,7 +261,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ task, open, onClose }) => {
           <div className="grid grid-cols-4 items-center gap-4">
             <label className="text-right text-sm font-medium">Assignee</label>
             <Select 
-              value={editedTask.assignee?.id || ''} 
+              value={editedTask.assignee?.id || 'unassigned'} 
               onValueChange={handleAssigneeChange}
             >
               <SelectTrigger className="col-span-3">
@@ -274,7 +278,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ task, open, onClose }) => {
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">
+                <SelectItem value="unassigned">
                   <span className="text-muted-foreground">Unassigned</span>
                 </SelectItem>
                 {users.map((user) => (
@@ -314,6 +318,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ task, open, onClose }) => {
                   selected={editedTask.dueDate}
                   onSelect={(date) => handleChange('dueDate', date)}
                   initialFocus
+                  className="p-3 pointer-events-auto"
                 />
               </PopoverContent>
             </Popover>

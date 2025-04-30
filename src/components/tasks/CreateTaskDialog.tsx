@@ -93,7 +93,7 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
   const [status, setStatus] = useState<Status>(defaultStatus);
   const [priority, setPriority] = useState<Priority>('medium');
   const [type, setType] = useState<TaskType>(defaultType);
-  const [assigneeId, setAssigneeId] = useState<string>('');
+  const [assigneeId, setAssigneeId] = useState<string>('unassigned');
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
@@ -126,7 +126,7 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
       setStatus(defaultStatus);
       setPriority('medium');
       setType(defaultType);
-      setAssigneeId('');
+      setAssigneeId('unassigned');
       setDueDate(undefined);
       setTags([]);
       setNewTag('');
@@ -155,7 +155,7 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
   const handleSubmit = () => {
     if (!title.trim()) return;
     
-    const assignee = assigneeId ? users.find(user => user.id === assigneeId) : undefined;
+    const assignee = assigneeId !== 'unassigned' ? users.find(user => user.id === assigneeId) : undefined;
     
     addTask({
       title,
@@ -287,7 +287,7 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
             <Select value={assigneeId} onValueChange={setAssigneeId}>
               <SelectTrigger className="col-span-3">
                 <SelectValue placeholder="Unassigned">
-                  {assigneeId && (
+                  {assigneeId !== 'unassigned' && (
                     <div className="flex items-center">
                       <Avatar className="h-5 w-5 mr-2">
                         <AvatarImage src={users.find(u => u.id === assigneeId)?.avatar} />
@@ -301,7 +301,7 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">
+                <SelectItem value="unassigned">
                   <span className="text-muted-foreground">Unassigned</span>
                 </SelectItem>
                 {users.map((user) => (
@@ -341,6 +341,7 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
                   selected={dueDate}
                   onSelect={setDueDate}
                   initialFocus
+                  className="p-3 pointer-events-auto"
                 />
               </PopoverContent>
             </Popover>
